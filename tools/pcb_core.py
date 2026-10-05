@@ -119,6 +119,9 @@ def load_lib_fp(libname):
     return fp
 
 
+POT_R = 8.5  # Alpha 16 mm pot body radius (Ø17)
+
+
 def pot_fp(dual):
     fp = Footprint("Venta:Pot_Alpha_16mm_RA_" + ("Dual" if dual else "Single"))
     fp.attr = "through_hole"
@@ -127,14 +130,15 @@ def pot_fp(dual):
         for i, n in enumerate(nums):
             fp.pads.append(Pad(n, "thru_hole", "rect" if n in ("1", "4") else "circle", -5 + 5 * i, y, 2.2, 2.2, 1.3,
                                None, ["*.Cu", "*.Mask"]))
-    # body outline (front view, pot sits on the F side between board and lid), shaft at origin;
-    # on Fab only: the pot body hides it after assembly, and it hangs over the board edge
-    fp.gfx.append(("fp_circle", "F.Fab", [0, 0, 8.25, 0], 0.1))
+    # body outline, Ø17 (Alpha RV16AF-41 / RV16A01F-41 datasheet), shaft at origin; the pot sits on the F side
+    # between board and lid. On Fab only: the pot body hides it after assembly, and it hangs over the board edge
+    fp.gfx.append(("fp_circle", "F.Fab", [0, 0, POT_R, 0], 0.1))
     fp.gfx.append(("fp_circle", "F.Fab", [0, 0, 3.0, 0], 0.1))  # shaft
     fp.gfx.append(("fp_line", "F.Fab", [-1.5, 0, 1.5, 0], 0.1))
     fp.gfx.append(("fp_line", "F.Fab", [0, -1.5, 0, 1.5], 0.1))
+    r = POT_R + 0.25        # body + 0.25 mm courtyard clearance
     ymax = 16 + 1.1 + 0.25  # pin row + pad radius + 0.25 mm courtyard clearance
-    for (x1, y1, x2, y2) in [(-8.5, -8.5, 8.5, -8.5), (8.5, -8.5, 8.5, ymax), (8.5, ymax, -8.5, ymax), (-8.5, ymax, -8.5, -8.5)]:
+    for (x1, y1, x2, y2) in [(-r, -r, r, -r), (r, -r, r, ymax), (r, ymax, -r, ymax), (-r, ymax, -r, -r)]:
         fp.gfx.append(("fp_line", "F.CrtYd", [x1, y1, x2, y2], 0.05))
     fp.ref_at = (0, 3.5)
     fp.val_at = (0, 5.2)  # under the reference, inside the body outline

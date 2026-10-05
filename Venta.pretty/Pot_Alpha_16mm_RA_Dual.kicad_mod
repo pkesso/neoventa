@@ -50,8 +50,8 @@
 	(attr through_hole)
 	(duplicate_pad_numbers_are_jumpers no)
 	(fp_line
-		(start -8.5 -8.5)
-		(end 8.5 -8.5)
+		(start -8.75 -8.75)
+		(end 8.75 -8.75)
 		(stroke
 			(width 0.05)
 			(type solid)
@@ -60,8 +60,8 @@
 		(uuid "88d46455-d622-5d70-a857-6b0a8f5f61a6")
 	)
 	(fp_line
-		(start -8.5 17.35)
-		(end -8.5 -8.5)
+		(start -8.75 17.35)
+		(end -8.75 -8.75)
 		(stroke
 			(width 0.05)
 			(type solid)
@@ -70,8 +70,8 @@
 		(uuid "5ccb2b42-e54e-5114-af62-4575e3e5c8ad")
 	)
 	(fp_line
-		(start 8.5 -8.5)
-		(end 8.5 17.35)
+		(start 8.75 -8.75)
+		(end 8.75 17.35)
 		(stroke
 			(width 0.05)
 			(type solid)
@@ -80,8 +80,8 @@
 		(uuid "f7667e7c-089a-5f64-b1a4-3a535c3a0c8b")
 	)
 	(fp_line
-		(start 8.5 17.35)
-		(end -8.5 17.35)
+		(start 8.75 17.35)
+		(end -8.75 17.35)
 		(stroke
 			(width 0.05)
 			(type solid)
@@ -122,7 +122,7 @@
 	)
 	(fp_circle
 		(center 0 0)
-		(end 8.25 0)
+		(end 8.5 0)
 		(stroke
 			(width 0.1)
 			(type solid)
