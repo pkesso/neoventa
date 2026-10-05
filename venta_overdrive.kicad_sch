@@ -2884,7 +2884,7 @@
 		)
 		(uuid "364ccf4d-a6f4-5da0-a3d2-bb47b3b5974c")
 	)
-	(label "RES"
+	(label "BP"
 		(at 212.09 229.87 90)
 		(effects
 			(font
@@ -3344,7 +3344,7 @@
 		)
 		(uuid "a2e4a724-215b-5b38-bd39-af647f9fec94")
 	)
-	(label "BP"
+	(label "RES"
 		(at 212.09 242.57 270)
 		(effects
 			(font

@@ -60,7 +60,8 @@ COMPONENTS = [
      "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm", "B", "C443686", "U3A Vref buffer, U3B integrator 2"),
     # pots (hand-soldered, Alpha 16 mm right-angle PCB mount)
     ("POT", "RV1", "B50k Drive", {"1": "VREF", "2": "DRIVE_W", "3": "DRIVE_HI"}, POT1, "F", "", ""),
-    ("POT", "RV2", "B50k Resonance", {"1": "RES", "2": "RES", "3": "BP"}, POT1, "F", "", ""),
+    # wiper shorted to the CW end: clockwise adds resistance between BP and RES, i.e. more resonance
+    ("POT", "RV2", "B50k Resonance", {"1": "BP", "2": "RES", "3": "RES"}, POT1, "F", "", ""),
     ("POT2", "RV3", "B50k dual Eq", {"1": "INT1_N", "2": "INT1_N", "3": "EQ_A", "4": "EQ_B", "5": "EQ_B", "6": "BP"}, POT2, "F", "", ""),
     ("POT", "RV4", "B50k Volume", {"1": "GND", "2": "VOL_W", "3": "VOL_HI"}, POT1, "F", "", ""),
     # wire pads

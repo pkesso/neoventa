@@ -48,6 +48,7 @@ requirements.txt              Python dependencies for tools/
 
 ### Changes from the original circuit
 - R8 (filter summer input) is 75 kΩ as in the factory schematic; the stripboard layout has 15 kΩ, which makes the pedal about 13 dB louder with a weaker resonance peak.
+- Resonance (RV2) is wired so that turning it clockwise increases the resonance, as on the original; the stripboard layout has it reversed.
 - 1N5817 → SS14, 47 µF → 22 µF ceramic, 1.5 MΩ → 1 MΩ (input pull-down).
 - Added 3 × 100 nF supply decoupling caps for the op-amps.
 - 1.5 nF filter caps are C0G (NP0).
