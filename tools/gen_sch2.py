@@ -154,7 +154,7 @@ def kicad_value(v):
 # Placement
 # ---------------------------------------------------------------------------
 GROUPS = [
-    ("Power, reference voltage VREF = VCC/2, LED", ["J3", "J4", "D3", "C1", "R1", "R2", "C2", "U3:1", "V2", "U1:3", "U2:3", "U3:3", "C10", "C11", "C12", "R17", "D4", "J6"]),
+    ("Power, reference voltage VREF = VCC/2, external LED pads", ["J3", "J4", "D3", "C1", "R1", "R2", "C2", "U3:1", "V2", "U1:3", "U2:3", "U3:3", "C10", "C11", "C12", "J6", "J7"]),
     ("Input: buffer (U1B) and Drive", ["V1", "J1", "R3", "C3", "R4", "U1:2", "C4", "RV1"]),
     ("Gain stage (U1A) and diode clipper", ["U1:1", "R5", "R6", "C5", "R7", "D1", "D2"]),
     ("State-variable filter (Eq, Resonance): summer U2A, integrators U2B and U3B",
@@ -209,7 +209,7 @@ def main():
                 pin_net_check.append((ref, num, net))
         y += ROWH + 12.7
     texts.append(("Simulation: Inspect > Simulator; the analysis is taken from the .tran text above. Knob positions: the Sim.Params field of RV1..RV4 (POS = 0..1).", X0 - 5.08, y - 20, 1.6))
-    texts.append(("V1 (100 mV, 440 Hz sine) and V2 (9 V) are for simulation only and are not on the board. J1..J6: wire pads for the jacks and the footswitch.", X0 - 5.08, y - 15, 1.6))
+    texts.append(("V1 (100 mV, 440 Hz sine) and V2 (9 V) are for simulation only and are not on the board. J1..J7: wire pads for the jacks, the footswitch and the external LED.", X0 - 5.08, y - 15, 1.6))
 
     os.makedirs(OUT, exist_ok=True)
     # ---------------- schematic ----------------

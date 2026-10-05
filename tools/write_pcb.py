@@ -1,7 +1,7 @@
 """Write venta_overdrive.kicad_pcb + project footprint lib, then resave both in KiCad 10 format via kicad-cli."""
 import copy, json, math, pickle, uuid, os
 from circuit2 import COMPONENTS
-from place import COMP, BOARD, SHAFTS, LED_CENTRE, courtyard
+from place import COMP, BOARD, SHAFTS, courtyard
 from pcb_core import get_fp, flip_layer, to_global, dump
 from route import TRACK, VIA_D, VIA_DRILL
 from kicad_cli import upgrade
@@ -73,7 +73,7 @@ def pad_layers(p, side):
 TEXT, STROKE = 1.0, 0.15  # label size: JLCPCB's minimum for legible silkscreen
 CHAR_W = 0.85             # character advance of KiCad's stroke font, in text heights (on the generous side)
 PAD_GAP, SILK_GAP, EDGE_GAP = 0.2, 0.15, 0.5
-BOARD_TEXTS = [("VENTA OD", 100, 112.2, 1.2, 0.2, "B"), ("VENTA OD  125B", 100, 113, 0.8, 0.15, "F")]
+BOARD_TEXTS = [("VENTA OD", 108, 112.2, 1.2, 0.2, "B"), ("VENTA OD  125B", 100, 113, 0.8, 0.15, "F")]
 LABELS = {}  # filled by place_labels() in main()
 
 
@@ -306,7 +306,7 @@ def main():
     x0, y0, x1, y1 = BOARD
     L = ['(kicad_pcb (version 20240108) (generator "pcbnew") (generator_version "8.0")',
          '(general (thickness 1.6) (legacy_teardrops no))', '(paper "A4")',
-         '(title_block (title "Venta Overdrive") (date "2026-10-03") (rev "1") (comment 1 "Hammond 1590N1 / 125B, pots Alpha 16 mm right-angle PCB mount") (comment 2 "SMD on bottom (JLCPCB assembly), pots/LED/wire pads hand-soldered"))',
+         '(title_block (title "Venta Overdrive") (date "2026-10-03") (rev "1") (comment 1 "Hammond 1590N1 / 125B, pots Alpha 16 mm right-angle PCB mount") (comment 2 "SMD on bottom (JLCPCB assembly), pots and wire pads hand-soldered"))',
          '(layers (0 "F.Cu" signal) (31 "B.Cu" signal) (32 "B.Adhes" user "B.Adhesive") (33 "F.Adhes" user "F.Adhesive") '
          '(34 "B.Paste" user) (35 "F.Paste" user) (36 "B.SilkS" user "B.Silkscreen") (37 "F.SilkS" user "F.Silkscreen") '
          '(38 "B.Mask" user) (39 "F.Mask" user) (40 "Dwgs.User" user "User.Drawings") (41 "Cmts.User" user "User.Comments") '
@@ -333,11 +333,10 @@ def main():
         (x1 - rr, y1 - rr, x1, y1 - rr, x1 - rr, y1, x1 - rr * k, y1 - rr * k),
         (x0 + rr, y1 - rr, x0 + rr, y1, x0, y1 - rr, x0 + rr * k, y1 - rr * k)]:
         L.append(f'(gr_arc (start {f(sx)} {f(sy)}) (mid {f(mx)} {f(my)}) (end {f(ex)} {f(ey)}) {st} (layer "Edge.Cuts") (uuid {U()}))')
-    # helper drawings: enclosure inner face outline + shaft/LED hole marks (User.Drawings), for the drill template
+    # helper drawings: enclosure inner face outline + shaft hole marks (User.Drawings), for the drill template
     L.append(f'(gr_rect (start 68.2 40.35) (end 131.8 159.65) (stroke (width 0.15) (type dash)) (fill none) (layer "Dwgs.User") (uuid {U()}))')
     for ref, (sx, sy) in SHAFTS.items():
         L.append(f'(gr_circle (center {f(sx)} {f(sy)}) (end {f(sx + 3.75)} {f(sy)}) (stroke (width 0.1) (type default)) (fill none) (layer "Dwgs.User") (uuid {U()}))')
-    L.append(f'(gr_circle (center {f(LED_CENTRE[0])} {f(LED_CENTRE[1])}) (end {f(LED_CENTRE[0] + 2.6)} {f(LED_CENTRE[1])}) (stroke (width 0.1) (type default)) (fill none) (layer "Dwgs.User") (uuid {U()}))')
     # silkscreen titles
     for txt, tx, ty, h, t, side in BOARD_TEXTS:
         mir = " (justify mirror)" if side == "B" else ""

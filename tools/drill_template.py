@@ -4,14 +4,14 @@ import os
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle
-from place import SHAFTS, LED_CENTRE
+from place import SHAFTS
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "drill_template_1590N1.pdf")
 
 PAGE_W, PAGE_H = 210.0, 297.0          # A4, mm
 CX, CY = 100.0, 100.0                  # enclosure centre in board coordinates
 FACE_W, FACE_H = 63.6, 119.3           # flat area of the lid
-POT_D, LED_D, SW_D = 7.5, 5.5, 12.0
+POT_D, SW_D = 7.5, 12.0
 SW_CENTRE = (100.0, 134.0)             # 3PDT footswitch
 CROSS = 2.0                            # half-length of the centre cross
 
@@ -20,7 +20,6 @@ HOLES = [
     (SHAFTS["RV1"], POT_D, "DRIVE"),
     (SHAFTS["RV3"], POT_D, "EQ"),
     (SHAFTS["RV2"], POT_D, "RES"),
-    (LED_CENTRE, LED_D, "LED"),
     (SW_CENTRE, SW_D, "3PDT"),
 ]
 

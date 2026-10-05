@@ -48,9 +48,6 @@ COMPONENTS = [
     ("C", "C9", "220n", {"1": "VOL_W", "2": "OUT_DC"}, C0805, "B", "C5378", ""),
     ("R", "R15", "100k", {"1": "OUT_DC", "2": "GND"}, R0805, "B", "C149504", ""),
     ("R", "R16", "1k", {"1": "OUT_DC", "2": "OUT"}, R0805, "B", "C17513", ""),
-    # LED (new)
-    ("R", "R17", "3.3k", {"1": "VCC", "2": "LED_A"}, R0805, "B", "C26010", "LED current ~2 mA"),
-    ("LED", "D4", "LED red 5mm", {"A": "LED_A", "K": "LED_K"}, "LED_THT:LED_D5.0mm", "F", "", "hand-solder; cathode goes to 3PDT"),
     # op-amps
     ("OPAMP2", "U1", "JRC4558D", {"1": "GAIN_OUT", "2": "GAIN_FB", "3": "DRIVE_W", "4": "GND",
                                   "5": "BUF_IN", "6": "BUF_OUT", "7": "BUF_OUT", "8": "VCC"},
@@ -72,7 +69,9 @@ COMPONENTS = [
     ("PAD", "J3", "9V", {"1": "+9V_IN"}, PAD, "F", "", "from DC jack (+9 V)"),
     ("PAD", "J4", "GND", {"1": "GND"}, PAD, "F", "", "DC jack ground"),
     ("PAD", "J5", "GND", {"1": "GND"}, PAD, "F", "", "jacks / 3PDT ground"),
-    ("PAD", "J6", "LED-", {"1": "LED_K"}, PAD, "F", "", "to 3PDT LED lug"),
+    # external status LED with its own resistor: anode to J6, cathode to a 3PDT lug, that pole's common to J7
+    ("PAD", "J6", "LED+", {"1": "VCC"}, PAD, "F", "", "to the external LED anode (LED has its own resistor)"),
+    ("PAD", "J7", "GND", {"1": "GND"}, PAD, "F", "", "to the common of the 3PDT pole that switches the LED"),
 ]
 
 POT_POS = {"RV1": 0.5, "RV2": 0.5, "RV3": 0.5, "RV4": 0.5}
@@ -95,5 +94,5 @@ def spice_deck(vin_amp=0.1, freq=440, pos=None, analysis=".tran 5u 60m 50m"):
             L.append(f"X{ref} " + " ".join(n(pins[str(i)]) for i in range(1, 4)) + f" POT R=50k POS={pos[ref]}")
         elif kind == "POT2":
             L.append(f"X{ref} " + " ".join(n(pins[str(i)]) for i in range(1, 7)) + f" POT_DUAL R=50k POS={pos[ref]}")
-    L += ["RLEDK LED_K 0 1", analysis, ".end"]  # footswitch 'on': LED cathode to ground
+    L += [analysis, ".end"]
     return "\n".join(L) + "\n"
