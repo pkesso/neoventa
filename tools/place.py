@@ -24,7 +24,7 @@ def pad_list(ref, x, y, rot):
     for p in fp.pads:
         gx, gy = to_global(p.x, p.y, x, y, rot, side)
         pin = p.num
-        if kind in ("D", "DS", "LED"):
+        if kind in ("D", "DS"):
             net = pins["K" if pin == "1" else "A"]
         else:
             net = pins.get(pin)

@@ -42,8 +42,8 @@ def netlist(pos, analysis):
         if kind in ("R", "C"):
             value = val[:-1] + "Meg" if val.endswith("M") else val
             out.append(f"{ref} {p['1']} {p['2']} {value}")
-        elif kind in ("D", "DS", "LED"):
-            model = {"D": "D1N4148", "DS": "D1N5817", "LED": "DLED"}[kind]
+        elif kind in ("D", "DS"):
+            model = {"D": "D1N4148", "DS": "D1N5817"}[kind]
             out.append(f"D{ref} {p['A']} {p['K']} {model}")
         elif kind == "OPAMP2":
             out.append(f"X{ref} " + " ".join(p[str(i)] for i in range(1, 9)) + " DUAL_OPAMP")

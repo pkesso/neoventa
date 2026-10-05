@@ -85,8 +85,8 @@ def spice_deck(vin_amp=0.1, freq=440, pos=None, analysis=".tran 5u 60m 50m"):
     for kind, ref, val, pins, fp, side, lcsc, note in COMPONENTS:
         if kind in ("R", "C"):
             L.append(f"{ref} {n(pins['1'])} {n(pins['2'])} {val.replace('M', 'Meg')}")
-        elif kind in ("D", "DS", "LED"):
-            m = {"D": "D1N4148", "DS": "D1N5817", "LED": "DLED"}[kind]
+        elif kind in ("D", "DS"):
+            m = {"D": "D1N4148", "DS": "D1N5817"}[kind]
             L.append(f"{ref} {n(pins['A'])} {n(pins['K'])} {m}")
         elif kind == "OPAMP2":
             L.append(f"X{ref} " + " ".join(n(pins[str(i)]) for i in range(1, 9)) + " DUAL_OPAMP")

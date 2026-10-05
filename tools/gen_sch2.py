@@ -83,10 +83,6 @@ SYMBOLS = {
     "CONN2": dict(prefix="J", desc="2-pin wire pads", pin_names=False, units={1: dict(
         gfx=[f"(rectangle (start -1.27 1.27) (end 1.27 -3.81) {STROKE} (fill (type background)))"],
         pins=[("1", "~", -5.08, 0, 0, 3.81, "passive"), ("2", "~", -5.08, -2.54, 0, 3.81, "passive")])}),
-    "LED": dict(prefix="D", desc="LED (pin 1 = K)", pin_names=False, units={1: dict(
-        gfx=[poly((-1.27, 1.27), (-1.27, -1.27)), poly((1.27, 1.27), (1.27, -1.27), (-1.27, 0), (1.27, 1.27)),
-             poly((1.27, 0), (-1.27, 0)), poly((-0.254, 1.778), (0.762, 2.794)), poly((0.508, 1.778), (1.524, 2.794))],
-        pins=[("1", "K", -3.81, 0, 0, 2.54, "passive"), ("2", "A", 3.81, 0, 180, 2.54, "passive")])}),
     "PAD": dict(prefix="J", desc="Wire solder pad", pin_names=False, units={1: dict(
         gfx=[f"(circle (center 0 0) (radius 0.762) {STROKE} (fill (type none)))"],
         pins=[("1", "~", -3.81, 0, 0, 3.048, "passive")])}),
@@ -97,7 +93,7 @@ SYMBOLS = {
 }
 
 KIND2SYM = {"R": "R", "C": "C", "CP": "CP", "D": "D", "DS": "D_Schottky", "OPAMP2": "OPAMP_DUAL",
-            "POT": "POT", "POT2": "POT_DUAL", "CONN2": "CONN2", "V": "VSOURCE", "LED": "LED", "PAD": "PAD"}
+            "POT": "POT", "POT2": "POT_DUAL", "CONN2": "CONN2", "V": "VSOURCE", "PAD": "PAD"}
 
 
 def lib_symbol(name, full):
@@ -132,8 +128,6 @@ def sim_fields(kind, ref, value):
         return {"Sim.Library": "simulations/venta.lib", "Sim.Name": "D1N4148", "Sim.Device": "D", "Sim.Pins": "1=K 2=A"}
     if kind == "DS":
         return {"Sim.Library": "simulations/venta.lib", "Sim.Name": "D1N5817", "Sim.Device": "D", "Sim.Pins": "1=K 2=A"}
-    if kind == "LED":
-        return {"Sim.Library": "simulations/venta.lib", "Sim.Name": "DLED", "Sim.Device": "D", "Sim.Pins": "1=K 2=A"}
     if kind == "OPAMP2":
         return {"Sim.Library": "simulations/venta.lib", "Sim.Name": "DUAL_OPAMP", "Sim.Device": "SUBCKT",
                 "Sim.Pins": "1=outa 2=ina_n 3=ina_p 4=vee 5=inb_p 6=inb_n 7=outb 8=vcc"}

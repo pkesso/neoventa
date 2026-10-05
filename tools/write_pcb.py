@@ -269,7 +269,7 @@ def footprint(ref, x, y, rot):
         o.append(f'(path "/{first}")')
         o.append('(sheetname "Root") (sheetfile "venta_overdrive.kicad_sch")')
     def pad_net(num):
-        net = pins["K" if num == "1" else "A"] if kind in ("D", "DS", "LED") else pins.get(num)
+        net = pins["K" if num == "1" else "A"] if kind in ("D", "DS") else pins.get(num)
         extra = [["net", str(NET[net]), q(netname(net))]] if net else []
         # op-amp GND pins: only one thermal spoke fits between the 1.27 mm pitch pins, so connect them solid
         if kind == "OPAMP2" and net == "GND":
