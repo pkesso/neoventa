@@ -96,6 +96,21 @@ It builds the netlist from `tools/circuit2.py` and runs ngspice as a shared libr
 - `sim_frequency.png` — small-signal frequency response for the Eq and Resonance knobs at 0/50/100 %.
 - `sim_waveforms.png` — 440 Hz, 100 mV input and the output at Drive 10/50/100 %.
 
+`render_wav.py` runs a recording through the simulated pedal and writes the result to a WAV file:
+
+```bash
+.venv/Scripts/python simulations/render_wav.py riff.wav riff_out.wav --drive 80 --eq 30 --res 70 --volume 60
+```
+
+- The input should be a dry (DI) guitar recording; the first channel is used. Its peak is scaled to `--peak` volts
+  (default 0.2 V, a single coil; humbuckers give more).
+- Knobs are in percent, 0–100 (default 50). `--start` and `--duration` cut a fragment, in seconds.
+- `--pickup` drives the input through a single-coil pickup and cable model instead of an ideal source.
+- The output is 16-bit PCM at the input's sample rate, normalised to −1 dBFS; `--gain` sets a fixed scale instead
+  (dBFS per volt), so different settings can be compared by level.
+- It runs at roughly real time (about a minute of computation per minute of audio). The op-amp and diode models in
+  `venta.lib` are behavioural, so this shows the character of the circuit rather than an exact copy of a real pedal.
+
 ## Tools
 
 Python 3 with numpy, scipy and matplotlib:

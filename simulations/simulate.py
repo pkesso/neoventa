@@ -34,8 +34,9 @@ def node(net):
     return "0" if net == "GND" else net.replace("+", "P")
 
 
-def netlist(pos, analysis):
-    """SPICE deck for the given pot positions {ref: 0..1} and analysis line."""
+def netlist(pos, analysis, source=None):
+    """SPICE deck for the given pot positions {ref: 0..1} and analysis line.
+    source: the input source line (V1 between IN and 0); a 440 Hz sine by default."""
     out = ["* Venta Overdrive", f".include {LIB}"]
     for kind, ref, val, pins, *_ in COMPONENTS:
         p = {k: node(v) for k, v in pins.items()}
@@ -55,7 +56,7 @@ def netlist(pos, analysis):
             continue
         else:
             raise ValueError(f"no simulation model for {ref} ({kind})")
-    out += [f"V1 IN 0 DC 0 AC 1 SIN(0 {IN_AMPL} {IN_FREQ})", "V2 P9V_IN 0 DC 9", analysis, ".end"]
+    out += [source or f"V1 IN 0 DC 0 AC 1 SIN(0 {IN_AMPL} {IN_FREQ})", "V2 P9V_IN 0 DC 9", analysis, ".end"]
     return out
 
 
@@ -71,6 +72,7 @@ class Ngspice:
         os.add_dll_directory(os.path.dirname(path))
         self.lib = C.CDLL(path)
         self.log = []
+        self.external = None  # f(time) -> volts for sources declared "EXTERNAL" (see render_wav.py)
         self._cb = (
             C.CFUNCTYPE(C.c_int, C.c_char_p, C.c_int, C.c_void_p)(self._print),
             C.CFUNCTYPE(C.c_int, C.c_char_p, C.c_int, C.c_void_p)(lambda *a: 0),
@@ -78,6 +80,16 @@ class Ngspice:
         )
         self.lib.ngSpice_Init(*self._cb, None, None, None, None)
         self.lib.ngGet_Vec_Info.restype = C.POINTER(VecInfo)
+        # external sources: ngspice asks for their value at every time point
+        src = C.CFUNCTYPE(C.c_int, C.POINTER(C.c_double), C.c_double, C.c_char_p, C.c_int, C.c_void_p)
+        sync = C.CFUNCTYPE(C.c_int, C.c_double, C.POINTER(C.c_double), C.c_double, C.c_int, C.c_int, C.c_int, C.c_void_p)
+        self._sync_cb = (src(self._vsrc), src(lambda *a: 0), sync(lambda *a: 0))
+        self._ident = C.c_int(0)
+        self.lib.ngSpice_Init_Sync(*self._sync_cb, C.byref(self._ident), None)
+
+    def _vsrc(self, value, t, _node, _id, _user):
+        value[0] = self.external(t) if self.external else 0.0
+        return 0
 
     def _print(self, s, _id, _user):
         self.log.append(s.decode(errors="replace"))
