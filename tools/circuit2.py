@@ -34,7 +34,7 @@ COMPONENTS = [
     ("D", "D1", "1N4148W", {"A": "CLIP", "K": "VREF"}, "Diode_SMD:D_SOD-123", "B", "C81598", ""),
     ("D", "D2", "1N4148W", {"A": "VREF", "K": "CLIP"}, "Diode_SMD:D_SOD-123", "B", "C81598", ""),
     # state-variable filter
-    ("R", "R8", "15k", {"1": "CLIP", "2": "SUM"}, R0805, "B", "C17475", ""),
+    ("R", "R8", "75k", {"1": "CLIP", "2": "SUM"}, R0805, "B", "C17819", "75k as in the factory schematic (the stripboard layout has 15k)"),
     ("R", "R9", "33k", {"1": "SUM", "2": "HP"}, R0805, "B", "C17633", ""),
     ("R", "R10", "33k", {"1": "SUM", "2": "LP"}, R0805, "B", "C17633", ""),
     ("R", "R11", "3k", {"1": "RES", "2": "VREF"}, R0805, "B", "C17661", ""),

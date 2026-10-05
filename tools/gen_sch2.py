@@ -44,11 +44,6 @@ SYMBOLS = {
     "C": dict(prefix="C", desc="Capacitor", pin_names=False, units={1: dict(
         gfx=[poly((-2.032, -0.762), (2.032, -0.762)), poly((-2.032, 0.762), (2.032, 0.762))],
         pins=[("1", "~", 0, 3.81, 270, 3.048, "passive"), ("2", "~", 0, -3.81, 90, 3.048, "passive")])}),
-    "CP": dict(prefix="C", desc="Polarized capacitor (pin 1 = +)", pin_names=False, units={1: dict(
-        gfx=[f"(rectangle (start -2.286 0.508) (end 2.286 1.016) {STROKE} (fill (type none)))",
-             f"(rectangle (start 2.286 -0.508) (end -2.286 -1.016) {STROKE} (fill (type outline)))",
-             poly((-1.778, 2.286), (-0.762, 2.286)), poly((-1.27, 2.794), (-1.27, 1.778))],
-        pins=[("1", "~", 0, 3.81, 270, 2.794, "passive"), ("2", "~", 0, -3.81, 90, 2.794, "passive")])}),
     "D": dict(prefix="D", desc="Diode (pin 1 = K)", pin_names=False, units={1: dict(
         gfx=[poly((-1.27, 1.27), (-1.27, -1.27)), poly((1.27, 1.27), (1.27, -1.27), (-1.27, 0), (1.27, 1.27)),
              poly((1.27, 0), (-1.27, 0))],
@@ -80,9 +75,6 @@ SYMBOLS = {
                      poly((2.54, 0), (1.524, 0)), poly((1.143, 0), (2.286, 0.508), (2.286, -0.508), (1.143, 0), fill="outline")],
                 pins=[("4", "4", 0, 3.81, 270, 1.27, "passive"), ("5", "5", 3.81, 0, 180, 1.27, "passive"),
                       ("6", "6", 0, -3.81, 90, 1.27, "passive")])}),
-    "CONN2": dict(prefix="J", desc="2-pin wire pads", pin_names=False, units={1: dict(
-        gfx=[f"(rectangle (start -1.27 1.27) (end 1.27 -3.81) {STROKE} (fill (type background)))"],
-        pins=[("1", "~", -5.08, 0, 0, 3.81, "passive"), ("2", "~", -5.08, -2.54, 0, 3.81, "passive")])}),
     "PAD": dict(prefix="J", desc="Wire solder pad", pin_names=False, units={1: dict(
         gfx=[f"(circle (center 0 0) (radius 0.762) {STROKE} (fill (type none)))"],
         pins=[("1", "~", -3.81, 0, 0, 3.048, "passive")])}),
@@ -92,8 +84,8 @@ SYMBOLS = {
         pins=[("1", "+", 0, 5.08, 270, 2.54, "passive"), ("2", "-", 0, -5.08, 90, 2.54, "passive")])}),
 }
 
-KIND2SYM = {"R": "R", "C": "C", "CP": "CP", "D": "D", "DS": "D_Schottky", "OPAMP2": "OPAMP_DUAL",
-            "POT": "POT", "POT2": "POT_DUAL", "CONN2": "CONN2", "V": "VSOURCE", "PAD": "PAD"}
+KIND2SYM = {"R": "R", "C": "C", "D": "D", "DS": "D_Schottky", "OPAMP2": "OPAMP_DUAL",
+            "POT": "POT", "POT2": "POT_DUAL", "V": "VSOURCE", "PAD": "PAD"}
 
 
 def lib_symbol(name, full):
@@ -158,7 +150,7 @@ GROUPS = [
 SIM_SOURCES = [("V", "V1", "VSIN", {"1": "IN", "2": "GND"}, "", "dc=0 ampl=0.1 f=440 ac=1", "SIN"),
                ("V", "V2", "VDC", {"1": "+9V_IN", "2": "GND"}, "", "dc=9", "DC")]
 
-WIDTH = {"OPAMP_DUAL": 50.8, "POT": 38.1, "POT_DUAL": 38.1, "D": 38.1, "D_Schottky": 38.1, "CONN2": 33.02, "VSOURCE": 27.94}
+WIDTH = {"OPAMP_DUAL": 50.8, "POT": 38.1, "POT_DUAL": 38.1, "D": 38.1, "D_Schottky": 38.1, "VSOURCE": 27.94}
 X0, XMAX, ROWH = 30.48, 575, 50.8
 STUB = 2.54
 
@@ -240,13 +232,13 @@ def main():
                 props["LCSC"] = c[6]
             if c[7]:
                 props["Note"] = c[7]
-        excl_sim = "yes" if kind in ("CONN2", "PAD") else "no"
+        excl_sim = "yes" if kind == "PAD" else "no"
         board = "no" if is_src else "yes"
         su = U(); SYMUUID[ref][unit] = su
         o.append(f'(symbol (lib_id {q(LIB + ":" + sname)}) (at {cx} {cy} 0) (unit {unit}) '
                  f'(exclude_from_sim {excl_sim}) (in_bom {board}) (on_board {board}) (dnp no) (uuid {q(su)})')
         L, R_, C_ = "(justify left)", "(justify right)", ""
-        if sname in ("R", "C", "CP"):
+        if sname in ("R", "C"):
             pos = [(cx + 2.54, cy - 1.27, L), (cx + 2.54, cy + 1.27, L)]
         elif sname == "VSOURCE":
             pos = [(cx + 3.81, cy - 1.27, L), (cx + 3.81, cy + 1.27, L)]
@@ -258,7 +250,7 @@ def main():
             pos = [(cx, cy - 7.62, C_), (cx, cy + 7.62, C_)]
         elif sname == "OPAMP_DUAL":
             pos = [(cx, cy - 1.27, C_), (cx, cy + 1.27, C_)]
-        else:  # CONN2
+        else:  # PAD
             pos = [(cx, cy - 2.54, C_), (cx, cy + 6.35, C_)]
         for k, v in props.items():
             if k in ("Reference", "Value"):
