@@ -1,0 +1,44 @@
+* Venta Overdrive - simulation models
+* Behavioral models, good enough for checking signal flow and levels.
+* For more accuracy, replace OPAMP1 with a vendor model (e.g. TI RC4558).
+
+* Single op-amp: GBW ~3 MHz, Aol 100 dB, output swing ~1.2 V from rails
+.subckt OPAMP1 inp inn vcc vee out
+Rin inp inn 1Meg
+Gm 0 n1 inp inn 1m
+Rg n1 0 100Meg
+Cg n1 0 53p
+Bhi hi 0 V=V(vcc)-1.2
+Blo lo 0 V=V(vee)+1.2
+Dh n1 hi DCLAMP
+Dl lo n1 DCLAMP
+Eo o1 0 n1 0 1
+Ro o1 out 75
+Iq vcc vee 2.5m
+.model DCLAMP D(Is=1e-15 N=0.1)
+.ends OPAMP1
+
+* Dual op-amp in standard DIP-8 pinout (4558 / 1458 / 5532 / TL072 ...)
+* 1=OUTA 2=INA- 3=INA+ 4=V- 5=INB+ 6=INB- 7=OUTB 8=V+
+.subckt DUAL_OPAMP outa ina_n ina_p vee inb_p inb_n outb vcc
+XA ina_p ina_n vcc vee outa OPAMP1
+XB inb_p inb_n vcc vee outb OPAMP1
+.ends DUAL_OPAMP
+
+* Linear potentiometer: 1 = CCW end, 2 = wiper, 3 = CW end. POS: 0..1
+.subckt POT 1 2 3 R=50k POS=0.5
+R1 1 2 {R*POS+1}
+R2 2 3 {R*(1-POS)+1}
+.ends POT
+
+* Dual-gang linear potentiometer (both gangs move together)
+.subckt POT_DUAL 1 2 3 4 5 6 R=50k POS=0.5
+R1 1 2 {R*POS+1}
+R2 2 3 {R*(1-POS)+1}
+R3 4 5 {R*POS+1}
+R4 5 6 {R*(1-POS)+1}
+.ends POT_DUAL
+
+.model D1N4148 D(Is=2.52n Rs=0.568 N=1.752 Cjo=4p M=0.4 tt=20n BV=100 IBV=100u)
+.model D1N5817 D(Is=31.7u Rs=0.051 N=1.373 Cjo=190p M=0.3 BV=20 IBV=1m)
+.model DLED D(Is=1e-19 N=1.8 Rs=5 BV=5 IBV=10u)
