@@ -9,16 +9,20 @@ TOOLS = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.dirname(TOOLS)  # repository root
 LIB = "Venta"
 NS = uuid.UUID("8d2f6a1e-5b3c-4c8e-9a7d-2f1e0b6c4d3a")
-_cnt = [0]
+_used = set()
 SYMUUID = {}
 
 
-def U():
-    _cnt[0] += 1
-    return str(uuid.uuid5(NS, str(_cnt[0])))
+def U(*key):
+    """UUID derived from what the item is, not from where it is written. KiCad sorts items by UUID,
+    so a sequential UUID would shift every later item (and reorder the whole file) on any insertion."""
+    k = "/".join(map(str, key))
+    assert k not in _used, f"duplicate UUID key {k}"
+    _used.add(k)
+    return str(uuid.uuid5(NS, k))
 
 
-ROOT = U()
+ROOT = str(uuid.uuid5(NS, "1"))  # the sheet UUID; venta_overdrive.kicad_pro refers to it, so it never changes
 FONT = "(effects (font (size 1.27 1.27)))"
 HIDE = "(effects (font (size 1.27 1.27)) (hide yes))"
 STROKE = "(stroke (width 0.254) (type default))"
@@ -209,16 +213,16 @@ def main():
         o.append(lib_symbol(sname, f"{LIB}:{sname}"))
     o.append(")")
     for x1, y1, x2, y2 in wires:
-        o.append(f"(wire (pts (xy {x1} {y1}) (xy {x2} {y2})) {STROKE0} (uuid {q(U())}))")
+        o.append(f"(wire (pts (xy {x1} {y1}) (xy {x2} {y2})) {STROKE0} (uuid {q(U("wire", x1, y1, x2, y2))}))")
     for net, x, yy, a in labels:
         just = "left bottom" if a in (0, 90) else "right bottom"
         o.append(f"(label {q(net)} (at {x} {yy} {a}) (fields_autoplaced yes) "
-                 f"(effects (font (size 1.27 1.27)) (justify {just})) (uuid {q(U())}))")
+                 f"(effects (font (size 1.27 1.27)) (justify {just})) (uuid {q(U("label", x, yy))}))")  # keyed by position: a new net is an edit, not a new label
     for t, x, yy, size in texts:
         o.append(f"(text {q(t)} (exclude_from_sim yes) (at {x} {yy} 0) "
-                 f"(effects (font (size {size} {size}) (bold yes)) (justify left bottom)) (uuid {q(U())}))")
+                 f"(effects (font (size {size} {size}) (bold yes)) (justify left bottom)) (uuid {q(U("text", t))}))")
     o.append(f'(text ".tran 5u 60m 50m" (exclude_from_sim no) (at {X0} 30 0) '
-             f'(effects (font (size 1.8 1.8)) (justify left bottom)) (uuid {q(U())}))')
+             f'(effects (font (size 1.8 1.8)) (justify left bottom)) (uuid {q(U('text', '.tran'))}))')
     for c, sname, unit, cx, cy in items:
         kind, ref, val, pins, fp = c[0], c[1], c[2], c[3], c[4]
         SYMUUID.setdefault(ref, {})
@@ -234,7 +238,7 @@ def main():
                 props["Note"] = c[7]
         excl_sim = "yes" if kind == "PAD" else "no"
         board = "no" if is_src else "yes"
-        su = U(); SYMUUID[ref][unit] = su
+        su = U("symbol", ref, unit); SYMUUID[ref][unit] = su
         o.append(f'(symbol (lib_id {q(LIB + ":" + sname)}) (at {cx} {cy} 0) (unit {unit}) '
                  f'(exclude_from_sim {excl_sim}) (in_bom {board}) (on_board {board}) (dnp no) (uuid {q(su)})')
         L, R_, C_ = "(justify left)", "(justify right)", ""
@@ -260,14 +264,11 @@ def main():
             else:
                 at, eff = f"{cx} {cy} 0", HIDE
             o.append(f"(property {q(k)} {q(v)} (at {at}) {eff})")
-        for num, *_ in SYMBOLS[sname]["units"][unit]["pins"]:
-            o.append(f"(pin {q(num)} (uuid {q(U())}))")
-        # KiCad 10 lists the pins of all units in every unit instance; give the other units' pins
-        # stable UUIDs (outside the U() sequence, so existing UUIDs don't shift)
-        for un, u in SYMBOLS[sname]["units"].items():
-            if un != unit:
-                for num, *_ in u["pins"]:
-                    o.append(f"(pin {q(num)} (uuid {q(uuid.uuid5(NS, f'{ref}/{unit}/pin {num}'))}))")
+        # KiCad 10 lists the pins of all units in every unit instance: this unit's pins first, then the others
+        units = SYMBOLS[sname]["units"]
+        for un in [unit] + [u for u in units if u != unit]:
+            for num, *_ in units[un]["pins"]:
+                o.append(f"(pin {q(num)} (uuid {q(U('pin', ref, unit, num))}))")
         o.append(f'(instances (project {q(PROJ)} (path {q("/" + ROOT)} (reference {q(ref)}) (unit {unit}))))')
         o.append(")")
     o.append('(sheet_instances (path "/" (page "1")))')

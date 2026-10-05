@@ -10,12 +10,16 @@ from gen_sch2 import sim_fields
 TOOLS = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.dirname(TOOLS)  # repository root
 NS = uuid.UUID("3b1a7c55-0f7e-4d0c-9a43-6f1b2a9d8e10")
-_n = [0]
+_used = set()
 
 
-def U():
-    _n[0] += 1
-    return '"' + str(uuid.uuid5(NS, str(_n[0]))) + '"'
+def U(*key):
+    """Quoted UUID derived from what the item is, not from where it is written. KiCad sorts items by UUID,
+    so a sequential UUID would shift every later item (and reorder the whole file) on any insertion."""
+    k = "/".join(map(str, key))
+    assert k not in _used, f"duplicate UUID key {k}"
+    _used.add(k)
+    return '"' + str(uuid.uuid5(NS, k)) + '"'
 
 
 def q(s):
@@ -46,19 +50,19 @@ def arc_pts(c, s, ang):
     return s, rot(s, ang / 2), rot(s, ang)
 
 
-def gfx_items(fp, side, rot):
+def gfx_items(fp, side, rot, key):
     out = []
     my = (lambda y: -y) if side == "B" else (lambda y: y)
-    for kind, layer, d, w in fp.gfx:
+    for i, (kind, layer, d, w) in enumerate(fp.gfx):
         L = flip_layer(layer) if side == "B" else layer
         st = f"(stroke (width {f(w)}) (type solid))"
         if kind == "fp_line":
-            out.append(f"(fp_line (start {f(d[0])} {f(my(d[1]))}) (end {f(d[2])} {f(my(d[3]))}) {st} (layer {q(L)}) (uuid {U()}))")
+            out.append(f"(fp_line (start {f(d[0])} {f(my(d[1]))}) (end {f(d[2])} {f(my(d[3]))}) {st} (layer {q(L)}) (uuid {U(*key, "gfx", i)}))")
         elif kind == "fp_circle":
-            out.append(f"(fp_circle (center {f(d[0])} {f(my(d[1]))}) (end {f(d[2])} {f(my(d[3]))}) {st} (fill none) (layer {q(L)}) (uuid {U()}))")
+            out.append(f"(fp_circle (center {f(d[0])} {f(my(d[1]))}) (end {f(d[2])} {f(my(d[3]))}) {st} (fill none) (layer {q(L)}) (uuid {U(*key, "gfx", i)}))")
         else:
             s, m, e = arc_pts((d[0], d[1]), (d[2], d[3]), d[4])
-            out.append(f"(fp_arc (start {f(s[0])} {f(my(s[1]))}) (mid {f(m[0])} {f(my(m[1]))}) (end {f(e[0])} {f(my(e[1]))}) {st} (layer {q(L)}) (uuid {U()}))")
+            out.append(f"(fp_arc (start {f(s[0])} {f(my(s[1]))}) (mid {f(m[0])} {f(my(m[1]))}) (end {f(e[0])} {f(my(e[1]))}) {st} (layer {q(L)}) (uuid {U(*key, "gfx", i)}))")
     return out
 
 
@@ -200,11 +204,12 @@ COORDS = {"at", "start", "mid", "end", "center", "xy"}
 ANGLED = {"pad", "fp_text"}  # their (at x y angle) holds the absolute orientation on the board
 
 
-def lib_item(item, side, rot, pad_net=None):
+def lib_item(item, side, rot, key, pad_net=None):
     """One item of a library footprint (fp.raw) as KiCad stores it on the board: footprint-local coordinates,
-    mirrored in Y with F/B layers swapped on the bottom side, absolute pad/text angles, fresh UUIDs."""
+    mirrored in Y with F/B layers swapped on the bottom side, absolute pad/text angles, UUIDs from key."""
     item = copy.deepcopy(item)
     bottom = side == "B"
+    n = [0]
 
     def walk(node, parent):
         head = node[0]
@@ -220,7 +225,8 @@ def lib_item(item, side, rot, pad_net=None):
         if head in ("layer", "layers") and bottom:
             node[1:] = [q(flip_layer(t.strip('"'))) for t in node[1:]]
         if head == "uuid":
-            node[1] = U()
+            n[0] += 1
+            node[1] = U(*key, n[0])
         if head == "effects" and bottom:
             j = next((c for c in node if isinstance(c, list) and c[0] == "justify"), None)
             if j is None:
@@ -237,7 +243,7 @@ def lib_item(item, side, rot, pad_net=None):
     # some library items have no UUID; KiCad would add a random one on every upgrade
     if item[0] in ("pad", "point") or item[0].startswith("fp_"):
         if not any(isinstance(c, list) and c[0] == "uuid" for c in item):
-            item.append(["uuid", U()])
+            item.append(["uuid", U(*key)])
     return dump(item)
 
 
@@ -247,22 +253,22 @@ def footprint(ref, x, y, rot):
     mir = " (justify mirror)" if side == "B" else ""
     my = (lambda v: -v) if side == "B" else (lambda v: v)
     sl = "B" if side == "B" else "F"
-    o = [f"(footprint {q(fpname)} (layer {q(sl + '.Cu')}) (uuid {U()}) (at {f(x)} {f(y)} {rot})"]
+    o = [f"(footprint {q(fpname)} (layer {q(sl + '.Cu')}) (uuid {U(ref)}) (at {f(x)} {f(y)} {rot})"]
     fs = f"(font (size {f(TEXT)} {f(TEXT)}) (thickness {f(STROKE)}))"
-    o.append(f'(property "Reference" {q(ref)} {label_at(ref, "Reference", x, y, rot)} (layer {q(sl + ".SilkS")}) (uuid {U()}) (effects {fs}{mir}))')
+    o.append(f'(property "Reference" {q(ref)} {label_at(ref, "Reference", x, y, rot)} (layer {q(sl + ".SilkS")}) (uuid {U(ref, "Reference")}) (effects {fs}{mir}))')
     if (ref, "Value") in LABELS:
         vat, vlayer = label_at(ref, "Value", x, y, rot), sl + ".SilkS"
     else:  # value on the fab layer, where the library footprint has it
         vx, vy = fp.val_at
         vat, vlayer = f"(at {f(vx)} {f(my(vy))} {rot})", sl + ".Fab"
-    o.append(f'(property "Value" {q(val)} {vat} (layer {q(vlayer)}) (uuid {U()}) (effects {fs}{mir}))')
+    o.append(f'(property "Value" {q(val)} {vat} (layer {q(vlayer)}) (uuid {U(ref, "Value")}) (effects {fs}{mir}))')
     # the footprint carries the same fields as its symbol, otherwise KiCad's schematic parity check complains
     fields = [("Footprint", fpname), ("Datasheet", ""), ("Description", ""), ("LCSC", lcsc), ("Note", note)]
     fields += list(sim_fields(kind, ref, val).items())
     for k, v in fields:
         if k in ("LCSC", "Note") and not v:  # the schematic symbol has these fields only when set
             continue
-        o.append(f'(property {q(k)} {q(v)} (at 0 0 {rot}) (layer {q(sl + ".Fab")}) (hide yes) (uuid {U()}) (effects (font (size 1 1) (thickness 0.15)){mir}))')
+        o.append(f'(property {q(k)} {q(v)} (at 0 0 {rot}) (layer {q(sl + ".Fab")}) (hide yes) (uuid {U(ref, k)}) (effects (font (size 1 1) (thickness 0.15)){mir}))')
     units = syminfo["sym"].get(ref, {})
     if units:
         first = units[sorted(units, key=int)[0]]
@@ -278,25 +284,25 @@ def footprint(ref, x, y, rot):
 
     if fp.raw:
         # library footprint: copy it whole (graphics, pads, 3D model, attributes) so it matches the library
-        for item in fp.raw[2:]:
+        for i, item in enumerate(fp.raw[2:]):
             if isinstance(item, list) and item[0] not in LIB_SKIP:
-                o.append(lib_item(item, side, rot, pad_net(item[1].strip('"'))[1] if item[0] == "pad" else None))
+                o.append(lib_item(item, side, rot, (ref, i), pad_net(item[1].strip('"'))[1] if item[0] == "pad" else None))
         o.append(")")
         return "\n  ".join(o)
     o.append(f"(attr {'smd' if fp.attr == 'smd' else 'through_hole'})")
-    o += gfx_items(fp, side, rot)
+    o += gfx_items(fp, side, rot, (ref,))
     for p in fp.pads:
         net, extra = pad_net(p.num)
         drill = f" (drill {f(p.drill)})" if p.drill else ""
         rr = f" (roundrect_rratio {f(p.rratio)})" if p.rratio else ""
         o.append(f"(pad {q(p.num)} {p.typ} {p.shape} (at {f(p.x)} {f(my(p.y))} {rot}) (size {f(p.w)} {f(p.h)}){drill} "
-                 f"(layers {pad_layers(p, side)}){rr}{''.join(' ' + dump(e) for e in extra)} (uuid {U()}))")
+                 f"(layers {pad_layers(p, side)}){rr}{''.join(' ' + dump(e) for e in extra)} (uuid {U(ref, 'pad', p.num)}))")
     o.append(")")
     return "\n  ".join(o)
 
 
 def zone(net, layer, pts):
-    return (f'(zone (net {NET[net]}) (net_name {q(netname(net))}) (layer {q(layer)}) (uuid {U()}) (name "GND_{layer[0]}") (hatch edge 0.5) '
+    return (f'(zone (net {NET[net]}) (net_name {q(netname(net))}) (layer {q(layer)}) (uuid {U('zone', layer)}) (name "GND_{layer[0]}") (hatch edge 0.5) '
             f'(priority 0) (connect_pads (clearance 0.3)) (min_thickness 0.25) (filled_areas_thickness no) '
             f'(fill yes (thermal_gap 0.4) (thermal_bridge_width 0.4) (island_removal_mode 0)) '
             f'(polygon (pts ' + " ".join(f"(xy {f(x)} {f(y)})" for x, y in pts) + ")))")
@@ -322,32 +328,32 @@ def main():
     # outline, rounded 1 mm corners
     rr = 1.0
     st = '(stroke (width 0.1) (type default))'
-    L.append(f'(gr_line (start {f(x0 + rr)} {f(y0)}) (end {f(x1 - rr)} {f(y0)}) {st} (layer "Edge.Cuts") (uuid {U()}))')
-    L.append(f'(gr_line (start {f(x1)} {f(y0 + rr)}) (end {f(x1)} {f(y1 - rr)}) {st} (layer "Edge.Cuts") (uuid {U()}))')
-    L.append(f'(gr_line (start {f(x1 - rr)} {f(y1)}) (end {f(x0 + rr)} {f(y1)}) {st} (layer "Edge.Cuts") (uuid {U()}))')
-    L.append(f'(gr_line (start {f(x0)} {f(y1 - rr)}) (end {f(x0)} {f(y0 + rr)}) {st} (layer "Edge.Cuts") (uuid {U()}))')
+    L.append(f'(gr_line (start {f(x0 + rr)} {f(y0)}) (end {f(x1 - rr)} {f(y0)}) {st} (layer "Edge.Cuts") (uuid {U("edge", "top")}))')
+    L.append(f'(gr_line (start {f(x1)} {f(y0 + rr)}) (end {f(x1)} {f(y1 - rr)}) {st} (layer "Edge.Cuts") (uuid {U("edge", "right")}))')
+    L.append(f'(gr_line (start {f(x1 - rr)} {f(y1)}) (end {f(x0 + rr)} {f(y1)}) {st} (layer "Edge.Cuts") (uuid {U("edge", "bottom")}))')
+    L.append(f'(gr_line (start {f(x0)} {f(y1 - rr)}) (end {f(x0)} {f(y0 + rr)}) {st} (layer "Edge.Cuts") (uuid {U("edge", "left")}))')
     k = 1 - 1 / math.sqrt(2)
-    for (cx, cy, sx, sy, ex, ey, mx, my) in [
+    for corner, (cx, cy, sx, sy, ex, ey, mx, my) in enumerate([
         (x0 + rr, y0 + rr, x0, y0 + rr, x0 + rr, y0, x0 + rr * k, y0 + rr * k),
         (x1 - rr, y0 + rr, x1 - rr, y0, x1, y0 + rr, x1 - rr * k, y0 + rr * k),
         (x1 - rr, y1 - rr, x1, y1 - rr, x1 - rr, y1, x1 - rr * k, y1 - rr * k),
-        (x0 + rr, y1 - rr, x0 + rr, y1, x0, y1 - rr, x0 + rr * k, y1 - rr * k)]:
-        L.append(f'(gr_arc (start {f(sx)} {f(sy)}) (mid {f(mx)} {f(my)}) (end {f(ex)} {f(ey)}) {st} (layer "Edge.Cuts") (uuid {U()}))')
+        (x0 + rr, y1 - rr, x0 + rr, y1, x0, y1 - rr, x0 + rr * k, y1 - rr * k)]):
+        L.append(f'(gr_arc (start {f(sx)} {f(sy)}) (mid {f(mx)} {f(my)}) (end {f(ex)} {f(ey)}) {st} (layer "Edge.Cuts") (uuid {U("edge", "corner", corner)}))')
     # helper drawings: enclosure inner face outline + shaft hole marks (User.Drawings), for the drill template
-    L.append(f'(gr_rect (start 68.2 40.35) (end 131.8 159.65) (stroke (width 0.15) (type dash)) (fill none) (layer "Dwgs.User") (uuid {U()}))')
+    L.append(f'(gr_rect (start 68.2 40.35) (end 131.8 159.65) (stroke (width 0.15) (type dash)) (fill none) (layer "Dwgs.User") (uuid {U("lid face")}))')
     for ref, (sx, sy) in SHAFTS.items():
-        L.append(f'(gr_circle (center {f(sx)} {f(sy)}) (end {f(sx + 3.75)} {f(sy)}) (stroke (width 0.1) (type default)) (fill none) (layer "Dwgs.User") (uuid {U()}))')
+        L.append(f'(gr_circle (center {f(sx)} {f(sy)}) (end {f(sx + 3.75)} {f(sy)}) (stroke (width 0.1) (type default)) (fill none) (layer "Dwgs.User") (uuid {U("shaft", ref)}))')
     # silkscreen titles
     for txt, tx, ty, h, t, side in BOARD_TEXTS:
         mir = " (justify mirror)" if side == "B" else ""
-        L.append(f'(gr_text {q(txt)} (at {f(tx)} {f(ty)} 0) (layer "{side}.SilkS") (uuid {U()}) '
+        L.append(f'(gr_text {q(txt)} (at {f(tx)} {f(ty)} 0) (layer "{side}.SilkS") (uuid {U("text", side, txt)}) '
                  f'(effects (font (size {f(h)} {f(h)}) (thickness {f(t)})){mir}))')
     # tracks / vias
     for layer, net, pts in tracks:
         for a, b in zip(pts, pts[1:]):
-            L.append(f"(segment (start {f(a[0])} {f(a[1])}) (end {f(b[0])} {f(b[1])}) (width {f(TRACK)}) (layer {q(layer)}) (net {NET[net]}) (uuid {U()}))")
+            L.append(f"(segment (start {f(a[0])} {f(a[1])}) (end {f(b[0])} {f(b[1])}) (width {f(TRACK)}) (layer {q(layer)}) (net {NET[net]}) (uuid {U('segment', layer, f(a[0]), f(a[1]), f(b[0]), f(b[1]))}))")
     for x, y, net in vias:
-        L.append(f'(via (at {f(x)} {f(y)}) (size {f(VIA_D)}) (drill {f(VIA_DRILL)}) (layers "F.Cu" "B.Cu") (net {NET[net]}) (uuid {U()}))')
+        L.append(f'(via (at {f(x)} {f(y)}) (size {f(VIA_D)}) (drill {f(VIA_DRILL)}) (layers "F.Cu" "B.Cu") (net {NET[net]}) (uuid {U("via", f(x), f(y))}))')
     zp = [(x0 + 0.5, y0 + 0.5), (x1 - 0.5, y0 + 0.5), (x1 - 0.5, y1 - 0.5), (x0 + 0.5, y1 - 0.5)]
     L.append(zone("GND", "F.Cu", zp))
     L.append(zone("GND", "B.Cu", zp))
@@ -361,20 +367,19 @@ def main():
     open(f"{OUT}/venta_overdrive.kicad_pcb", "w", newline="\n").write(txt)
     # project footprint library
     os.makedirs(f"{OUT}/Venta.pretty", exist_ok=True)
-    for i, name in enumerate(("Venta:Pot_Alpha_16mm_RA_Single", "Venta:Pot_Alpha_16mm_RA_Dual", "Venta:WirePad")):
-        _n[0] = 1_000_000 * (i + 1)  # fixed UUID base per library footprint, independent of the board contents
+    for name in ("Venta:Pot_Alpha_16mm_RA_Single", "Venta:Pot_Alpha_16mm_RA_Dual", "Venta:WirePad"):
         fp = get_fp(name)
         o = [f'(footprint {q(name.split(":")[1])} (version 20240108) (generator "pcbnew") (generator_version "8.0") (layer "F.Cu")',
-             f'(property "Reference" "REF**" (at {f(fp.ref_at[0])} {f(fp.ref_at[1])} 0) (layer "F.SilkS") (uuid {U()}) (effects (font (size 1 1) (thickness 0.15))))',
-             f'(property "Value" {q(name.split(":")[1])} (at {f(fp.val_at[0])} {f(fp.val_at[1])} 0) (layer "F.Fab") (uuid {U()}) (effects (font (size 1 1) (thickness 0.15))))']
-        # KiCad 10 adds these on upgrade with random UUIDs; write them with stable ones (outside the U() sequence)
+             f'(property "Reference" "REF**" (at {f(fp.ref_at[0])} {f(fp.ref_at[1])} 0) (layer "F.SilkS") (uuid {U(name, "Reference")}) (effects (font (size 1 1) (thickness 0.15))))',
+             f'(property "Value" {q(name.split(":")[1])} (at {f(fp.val_at[0])} {f(fp.val_at[1])} 0) (layer "F.Fab") (uuid {U(name, "Value")}) (effects (font (size 1 1) (thickness 0.15))))']
+        # KiCad 10 adds these on upgrade with random UUIDs; write them with stable ones
         for prop in ("Datasheet", "Description"):
-            o.append(f'(property {q(prop)} "" (at 0 0 0) (layer "F.Fab") (hide yes) (uuid "{uuid.uuid5(NS, name + "/" + prop)}") '
+            o.append(f'(property {q(prop)} "" (at 0 0 0) (layer "F.Fab") (hide yes) (uuid {U(name, prop)}) '
                      f'(effects (font (size 1.27 1.27))))')
         o.append('(attr through_hole)')
-        o += gfx_items(fp, "F", 0)
+        o += gfx_items(fp, "F", 0, (name,))
         for p in fp.pads:
-            o.append(f'(pad {q(p.num)} thru_hole {p.shape} (at {f(p.x)} {f(p.y)}) (size {f(p.w)} {f(p.h)}) (drill {f(p.drill)}) (layers "*.Cu" "*.Mask") (uuid {U()}))')
+            o.append(f'(pad {q(p.num)} thru_hole {p.shape} (at {f(p.x)} {f(p.y)}) (size {f(p.w)} {f(p.h)}) (drill {f(p.drill)}) (layers "*.Cu" "*.Mask") (uuid {U(name, "pad", p.num)}))')
         o.append(")")
         open(f"{OUT}/Venta.pretty/{name.split(':')[1]}.kicad_mod", "w", newline="\n").write("\n  ".join(o) + "\n")
     upgrade("pcb", f"{OUT}/venta_overdrive.kicad_pcb")
