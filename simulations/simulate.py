@@ -1,7 +1,7 @@
 """Simulate the Venta Overdrive with ngspice and plot the results.
 
 The netlist is built from tools/circuit2.py; models come from venta.lib. ngspice is used as a
-shared library (KiCad ships one: KiCad/10.0/bin/ngspice.dll); set NGSPICE_DLL to use another.
+shared library: the ngspice.dll in KiCad's bin directory ($KICAD_BIN, see tools/kicad_cli.py).
 
 Outputs (next to this script):
   sim_frequency.png  small-signal frequency response vs the Eq and Resonance knobs
@@ -19,9 +19,9 @@ from matplotlib.ticker import FuncFormatter
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "tools"))
 from circuit2 import COMPONENTS  # noqa: E402
+from kicad_cli import kicad_file  # noqa: E402
 
 LIB = os.path.join(HERE, "venta.lib").replace("\\", "/")
-DLL = os.environ.get("NGSPICE_DLL", r"C:\Program Files\KiCad\10.0\bin\ngspice.dll")
 
 IN_AMPL, IN_FREQ = 0.1, 440.0
 TRAN = ".tran 5u 60m 50m"   # same analysis as on the schematic; the last 10 ms are plotted
@@ -162,7 +162,7 @@ def waveform_plot(ng):
 
 
 def main():
-    ng = Ngspice(DLL)
+    ng = Ngspice(kicad_file("ngspice.dll"))
     frequency_plot(ng)
     waveform_plot(ng)
     print("wrote sim_frequency.png, sim_waveforms.png")

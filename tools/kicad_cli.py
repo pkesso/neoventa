@@ -1,18 +1,42 @@
-"""Thin wrapper around kicad-cli. Set KICAD_CLI to override the default KiCad 10 location."""
+"""KiCad tools: kicad-cli and ngspice, both in KiCad's bin directory (see kicad_bin())."""
 import glob
 import os
 import shutil
 import subprocess
 
-KICAD_CLI = (os.environ.get("KICAD_CLI") or shutil.which("kicad-cli")
-             or r"C:\Program Files\KiCad\10.0\bin\kicad-cli.exe")
+KICAD_VERSION = "10.0"
+
+
+def kicad_bin():
+    """KiCad's bin directory: $KICAD_BIN if set, else the directory of kicad-cli on PATH,
+    else the default Windows install, %ProgramFiles%\\KiCad\\10.0\\bin."""
+    d = os.environ.get("KICAD_BIN")
+    if d:
+        if not os.path.isdir(d):
+            raise RuntimeError(f"KICAD_BIN={d} is not a directory")
+        return d
+    cli = shutil.which("kicad-cli")
+    if cli:
+        return os.path.dirname(cli)
+    if os.environ.get("ProgramFiles"):
+        d = os.path.join(os.environ["ProgramFiles"], "KiCad", KICAD_VERSION, "bin")
+        if os.path.isdir(d):
+            return d
+    raise RuntimeError(f"KiCad {KICAD_VERSION} not found: set KICAD_BIN to KiCad's bin directory")
+
+
+def kicad_file(name):
+    """Path of a file in KiCad's bin directory; raises if it is missing."""
+    path = os.path.join(kicad_bin(), name)
+    if not os.path.isfile(path):
+        raise RuntimeError(f"{path} not found (check KICAD_BIN)")
+    return path
 
 
 def run(*args):
-    """Run kicad-cli with the given arguments; raise with its output if it fails to start or errors out."""
-    if not (os.path.isfile(KICAD_CLI) or shutil.which(KICAD_CLI)):
-        raise RuntimeError(f"kicad-cli not found at {KICAD_CLI} (set KICAD_CLI)")
-    p = subprocess.run([KICAD_CLI, *args], capture_output=True)
+    """Run kicad-cli with the given arguments; raise with its output if it errors out."""
+    cli = kicad_file("kicad-cli.exe" if os.name == "nt" else "kicad-cli")
+    p = subprocess.run([cli, *args], capture_output=True)
     if p.returncode:
         out = (p.stdout + p.stderr).decode(errors="replace")
         raise RuntimeError(f"kicad-cli {' '.join(args)} failed:\n{out}")
