@@ -4,7 +4,8 @@ import re, math, os
 FPDIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fplib")
 
 
-def sexpr(s):
+def sexpr(s, keep_quotes=False):
+    """Parse an S-expression into nested lists. keep_quotes keeps string tokens quoted, so dump() can write them back."""
     tok = re.findall(r'"(?:\\.|[^"\\])*"|\(|\)|[^\s()"]+', s)
     st = [[]]
     for t in tok:
@@ -13,8 +14,13 @@ def sexpr(s):
         elif t == ")":
             x = st.pop(); st[-1].append(x)
         else:
-            st[-1].append(t[1:-1] if t.startswith('"') else t)
+            st[-1].append(t[1:-1] if t.startswith('"') and not keep_quotes else t)
     return st[0][0]
+
+
+def dump(node):
+    """Inverse of sexpr(..., keep_quotes=True), on one line."""
+    return "(" + " ".join(dump(x) if isinstance(x, list) else x for x in node) + ")"
 
 
 def kids(node, key):
@@ -40,37 +46,70 @@ class Footprint:
         self.attr = "smd"
         self.ref_at = (0, -1.65)
         self.val_at = (0, 1.65)
+        self.raw = None  # library footprint as parsed with keep_quotes=True (None for generated footprints)
+
+
+def arc_points(s, m, e, n=8):
+    """n+1 points along the circular arc from s through m to e."""
+    (ax, ay), (bx, by), (cx, cy) = s, m, e
+    d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by))
+    if abs(d) < 1e-12:
+        return [s, e]
+    ux = ((ax * ax + ay * ay) * (by - cy) + (bx * bx + by * by) * (cy - ay) + (cx * cx + cy * cy) * (ay - by)) / d
+    uy = ((ax * ax + ay * ay) * (cx - bx) + (bx * bx + by * by) * (ax - cx) + (cx * cx + cy * cy) * (bx - ax)) / d
+    r = math.dist((ux, uy), s)
+    a0, am, a1 = (math.atan2(p[1] - uy, p[0] - ux) for p in (s, m, e))
+    sweep = (a1 - a0) % (2 * math.pi)
+    if (am - a0) % (2 * math.pi) > sweep:  # the arc goes the other way round
+        sweep -= 2 * math.pi
+    return [(ux + r * math.cos(a0 + sweep * i / n), uy + r * math.sin(a0 + sweep * i / n)) for i in range(n + 1)]
 
 
 def load_lib_fp(libname):
     lib, name = libname.split(":")
-    t = sexpr(open(f"{FPDIR}/{lib}__{name}.kicad_mod").read())
+    text = open(f"{FPDIR}/{lib}__{name}.kicad_mod", encoding="utf-8").read()
+    t = sexpr(text)
     fp = Footprint(libname)
+    fp.raw = sexpr(text, keep_quotes=True)
     a = kid(t, "attr")
     fp.attr = a[1] if a else "through_hole"
-    for txt in kids(t, "fp_text"):
+    # reference/value positions: (property "Reference" ...) since KiCad 8, (fp_text reference ...) before
+    for txt in kids(t, "property") + kids(t, "fp_text"):
         at = kid(txt, "at")
-        if txt[1] == "reference":
+        if txt[1] in ("Reference", "reference"):
             fp.ref_at = (float(at[1]), float(at[2]))
-        elif txt[1] == "value":
+        elif txt[1] in ("Value", "value"):
             fp.val_at = (float(at[1]), float(at[2]))
     for g in t:
         if not isinstance(g, list):
             continue
-        if g[0] in ("fp_line", "fp_circle", "fp_arc"):
+        if g[0] in ("fp_line", "fp_circle", "fp_arc", "fp_rect", "fp_poly"):
             layer = kid(g, "layer")[1]
-            w = kid(g, "width")
+            w = kid(g, "width") or kid(kid(g, "stroke") or [], "width")
             w = float(w[1]) if w else 0.12
+            pt = lambda key: [float(v) for v in kid(g, key)[1:3]]
             if g[0] == "fp_line":
-                d = [float(v) for v in kid(g, "start")[1:3] + kid(g, "end")[1:3]]
+                fp.gfx.append(("fp_line", layer, pt("start") + pt("end"), w))
             elif g[0] == "fp_circle":
-                d = [float(v) for v in kid(g, "center")[1:3] + kid(g, "end")[1:3]]
-            else:  # old arc: start=center, end=start point, angle
-                c = [float(v) for v in kid(g, "start")[1:3]]
-                s = [float(v) for v in kid(g, "end")[1:3]]
-                ang = float(kid(g, "angle")[1])
-                d = c + s + [ang]
-            fp.gfx.append((g[0], layer, d, w))
+                fp.gfx.append(("fp_circle", layer, pt("center") + pt("end"), w))
+                if layer.endswith("CrtYd"):  # courtyard() works on line end points: add the bounding square
+                    cx, cy = pt("center"); r = math.dist(pt("center"), pt("end"))
+                    for x1, y1, x2, y2 in [(-r, -r, r, -r), (r, -r, r, r), (r, r, -r, r), (-r, r, -r, -r)]:
+                        fp.gfx.append(("fp_line", layer, [cx + x1, cy + y1, cx + x2, cy + y2], w))
+            elif g[0] == "fp_rect":
+                (x1, y1), (x2, y2) = pt("start"), pt("end")
+                for d in [(x1, y1, x2, y1), (x2, y1, x2, y2), (x2, y2, x1, y2), (x1, y2, x1, y1)]:
+                    fp.gfx.append(("fp_line", layer, list(d), w))
+            elif g[0] == "fp_poly":
+                pts = [(float(p[1]), float(p[2])) for p in kids(kid(g, "pts"), "xy")]
+                for (x1, y1), (x2, y2) in zip(pts, pts[1:] + pts[:1]):
+                    fp.gfx.append(("fp_line", layer, [x1, y1, x2, y2], w))
+            elif kid(g, "angle"):  # old arc: start=center, end=start point, angle
+                fp.gfx.append(("fp_arc", layer, pt("start") + pt("end") + [float(kid(g, "angle")[1])], w))
+            else:  # start/mid/end arc: approximate with segments (library footprints are written from fp.raw)
+                pts = arc_points(pt("start"), pt("mid"), pt("end"))
+                for (x1, y1), (x2, y2) in zip(pts, pts[1:]):
+                    fp.gfx.append(("fp_line", layer, [x1, y1, x2, y2], w))
         if g[0] == "pad":
             at = kid(g, "at"); sz = kid(g, "size")
             dr = kid(g, "drill"); rr = kid(g, "roundrect_rratio")
@@ -88,16 +127,17 @@ def pot_fp(dual):
         for i, n in enumerate(nums):
             fp.pads.append(Pad(n, "thru_hole", "rect" if n in ("1", "4") else "circle", -5 + 5 * i, y, 2.2, 2.2, 1.3,
                                None, ["*.Cu", "*.Mask"]))
-    # body outline (front view, pot sits on the F side between board and lid), shaft at origin
-    fp.gfx.append(("fp_circle", "F.SilkS", [0, 0, 8.25, 0], 0.15))
+    # body outline (front view, pot sits on the F side between board and lid), shaft at origin;
+    # on Fab only: the pot body hides it after assembly, and it hangs over the board edge
+    fp.gfx.append(("fp_circle", "F.Fab", [0, 0, 8.25, 0], 0.1))
     fp.gfx.append(("fp_circle", "F.Fab", [0, 0, 3.0, 0], 0.1))  # shaft
     fp.gfx.append(("fp_line", "F.Fab", [-1.5, 0, 1.5, 0], 0.1))
     fp.gfx.append(("fp_line", "F.Fab", [0, -1.5, 0, 1.5], 0.1))
-    ymax = 16 + 1.6
+    ymax = 16 + 1.1 + 0.25  # pin row + pad radius + 0.25 mm courtyard clearance
     for (x1, y1, x2, y2) in [(-8.5, -8.5, 8.5, -8.5), (8.5, -8.5, 8.5, ymax), (8.5, ymax, -8.5, ymax), (-8.5, ymax, -8.5, -8.5)]:
         fp.gfx.append(("fp_line", "F.CrtYd", [x1, y1, x2, y2], 0.05))
     fp.ref_at = (0, 3.5)
-    fp.val_at = (0, -4)
+    fp.val_at = (0, 5.2)  # under the reference, inside the body outline
     return fp
 
 

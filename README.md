@@ -92,12 +92,13 @@ Scripts are run from the `tools/` directory. The pipeline:
 | Check | `verify2.py <file.kicad_sch>` | Rebuilds connectivity from the schematic, compares it with `circuit2.py`, runs ngspice |
 | Drilling template | `drill_template.py` | Hole positions from `place.py` → `../drill_template_1590N1.pdf` (A4, 1:1) |
 
-Helper modules: `check.py` (repository checks, see below), `place.py` (board outline, placement), `route.py` (2-layer grid router, 0.25 mm grid), `pcb_core.py` (footprint loading and geometry, reads `tools/fplib/`), `kicad_cli.py` (runs `kicad-cli upgrade`), `k10fmt.py` (KiCad 10 library formatter, no longer used by the pipeline).
+Helper modules: `check.py` (repository checks, see below), `place.py` (board outline, placement), `route.py` (2-layer A* grid router, 0.25 mm grid; turns cost extra, so tracks run straight with 45° bends), `pcb_core.py` (footprint loading and geometry, reads `tools/fplib/`: copies of the KiCad 10 library footprints used on the board, so the output does not depend on the installed library version), `kicad_cli.py` (runs `kicad-cli upgrade`), `k10fmt.py` (KiCad 10 library formatter, no longer used by the pipeline).
 
 Notes:
 - `routed.pkl` is in `.gitignore`. Without it, `write_pcb.py` can only run after routing again.
 - `gen_sch2.py` and `write_pcb.py` overwrite the KiCad files. Changes made by hand in KiCad will be lost if you regenerate them.
 - The generators are deterministic: running them again on unchanged inputs reproduces the committed files byte for byte.
+- `write_pcb.py` copies library footprints whole from `tools/fplib/` and places the silkscreen labels (1.0 mm text) where they clear pads, other silkscreen and the board edge.
 
 ## Checks
 

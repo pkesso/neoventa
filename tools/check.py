@@ -39,11 +39,12 @@ SCH, PCB = f"{PROJ}.kicad_sch", f"{PROJ}.kicad_pcb"
 BOM, CPL = "jlcpcb/BOM_JLCPCB.csv", "jlcpcb/CPL_JLCPCB.csv"
 KICAD_EXT = (".kicad_sch", ".kicad_pcb", ".kicad_sym", ".kicad_mod")
 KICAD_FILES = KICAD_EXT + (".kicad_pro", "fp-lib-table", "sym-lib-table")
-INPUT_ONLY = ("tools/fplib/",)  # old-format footprints read by pcb_core.py, never opened in KiCad
 
 ABS_PATH = re.compile(r"(?<![A-Za-z])[A-Za-z]:[\\/]|(?<![\w}$])/(?:home|Users|tmp|mnt)/")
 CYRILLIC = re.compile(f"[{chr(0x400)}-{chr(0x4FF)}]")  # written with chr() so this file passes the check
-GEN_VERSION = re.compile(rb'\(generator_version "(\d+)\.')
+FILE_VERSION = re.compile(rb"\(version (\d+)\)")
+# newest file format version written by KiCad 9; anything newer is KiCad 10
+KICAD9_VERSION = {".kicad_sch": 20250114, ".kicad_sym": 20241209, ".kicad_pcb": 20241229, ".kicad_mod": 20241229}
 
 
 # ---------------------------------------------------------------- helpers
@@ -61,7 +62,7 @@ def staged_files():
 
 
 def is_kicad(f):
-    return f.endswith(KICAD_FILES) and not f.startswith(INPUT_ONLY)
+    return f.endswith(KICAD_FILES)
 
 
 def read_text(f):
@@ -86,9 +87,9 @@ def check_format(files):
     for f in files:
         if not (f.endswith(KICAD_EXT) and is_kicad(f)):
             continue
-        m = GEN_VERSION.search(open(os.path.join(ROOT, f), "rb").read(400))
-        if not m or int(m.group(1)) < 10:
-            got = f"KiCad {m.group(1).decode()}" if m else "no generator_version"
+        m = FILE_VERSION.search(open(os.path.join(ROOT, f), "rb").read(400))
+        if not m or int(m.group(1)) <= KICAD9_VERSION[os.path.splitext(f)[1]]:
+            got = f"version {m.group(1).decode()}" if m else "no version"
             r.errors.append(f"{f}: not in KiCad 10 format ({got})")
     return r
 

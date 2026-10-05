@@ -6,7 +6,7 @@
 	(property "Reference" "REF**"
 		(at 0 -2.3 0)
 		(layer "F.SilkS")
-		(uuid "523ed6f8-8446-50fe-8d63-2c854af58e0b")
+		(uuid "addb716a-b725-5b6b-8c47-78b7b910274c")
 		(effects
 			(font
 				(size 1 1)
@@ -17,7 +17,7 @@
 	(property "Value" "WirePad"
 		(at 0 2.3 0)
 		(layer "F.Fab")
-		(uuid "b14fbbc0-92fa-57dd-b202-e9a571abbe3c")
+		(uuid "605d78b2-280a-5a2a-8757-9cb7cacd7ce8")
 		(effects
 			(font
 				(size 1 1)
@@ -57,7 +57,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
-		(uuid "d565ea07-cfce-59a8-9442-411c9afafc81")
+		(uuid "b9081178-7fd9-5d35-a947-6cbbe5273f34")
 	)
 	(fp_line
 		(start -1.4 1.4)
@@ -67,7 +67,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
-		(uuid "c32d3dc3-a638-5f1c-96cf-4066425f84e2")
+		(uuid "4258d17e-261f-548b-bd2c-ecdf2a003238")
 	)
 	(fp_line
 		(start 1.4 -1.4)
@@ -77,7 +77,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
-		(uuid "c167932d-78df-52a6-89c0-766f12e82201")
+		(uuid "4c1aaccc-c284-5f2a-8752-511c58d75081")
 	)
 	(fp_line
 		(start 1.4 1.4)
@@ -87,7 +87,7 @@
 			(type solid)
 		)
 		(layer "F.CrtYd")
-		(uuid "9d9bae5f-77e6-50e2-85a5-fa061bde5408")
+		(uuid "e03747f1-aeed-5c90-ad0a-505f86857d29")
 	)
 	(pad "1" thru_hole circle
 		(at 0 0)
@@ -95,7 +95,7 @@
 		(drill 1.1)
 		(layers "*.Cu" "*.Mask")
 		(remove_unused_layers no)
-		(uuid "cbd26011-b716-5a0d-b915-eabf9880bc46")
+		(uuid "2e26b056-04cf-5938-830b-960616199bba")
 	)
 	(embedded_fonts no)
 )

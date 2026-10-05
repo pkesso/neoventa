@@ -24,6 +24,12 @@ VIA_KEEP = disk(0.70 / G)     # via (r .3) to other copper cell centre, need .3+
 EDGE_KEEP = 0.55              # mm from board edge to track centre
 
 
+# A* moves in 45-degree steps; extra cost of a turn by 0/45/90/135 degrees (in grid cells of length)
+DIRS = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]
+TURN_COST = [0.0, 1.0, 3.0, 10.0]
+NODIR = 8  # at a pad or right after a via
+
+
 def cell(x, y):
     return int(round((x - X0) / G)), int(round((y - Y0) / G))
 
@@ -87,7 +93,7 @@ class Router:
         vb |= binary_dilation(self.edge, structure=disk(2))
         return b, vb
 
-    def route_net(self, net, via_cost=6.0):
+    def route_net(self, net, via_cost=10.0):
         pads = self.nets[net]
         if len(pads) < 2:
             return True
@@ -116,36 +122,43 @@ class Router:
         return True
 
     def astar(self, starts, goals, blk, vblk, nid, via_cost):
+        """A* over (layer, i, j, direction). Turns cost extra, so tracks run straight with 45-degree bends
+        instead of staircases."""
         gx = np.mean([g[1] for g in goals]); gy = np.mean([g[2] for g in goals])
-        h = lambda i, j: math.hypot(i - gx, j - gy) * 0.95
+
+        def h(i, j):  # octile distance to the goal centre
+            dx, dy = abs(i - gx), abs(j - gy)
+            return (max(dx, dy) + (math.sqrt(2) - 1) * min(dx, dy)) * 0.95
+
         openh = []
         best = {}
         prev = {}
         for s in starts:
-            best[s] = 0.0
-            heapq.heappush(openh, (h(s[1], s[2]), 0.0, s))
-        dirs = [(1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0),
-                (1, 1, 1.414), (1, -1, 1.414), (-1, 1, 1.414), (-1, -1, 1.414)]
+            st = s + (NODIR,)
+            best[st] = 0.0
+            heapq.heappush(openh, (h(s[1], s[2]), 0.0, st))
         n = 0
         while openh:
             f, gcost, cur = heapq.heappop(openh)
             if gcost > best.get(cur, 1e18):
                 continue
-            if cur in goals:
+            L, i, j, d = cur
+            if (L, i, j) in goals:
                 path = [cur]
                 while path[-1] in prev:
                     path.append(prev[path[-1]])
-                return path[::-1]
+                return [st[:3] for st in path[::-1]]
             n += 1
-            if n > 400000:
+            if n > 2000000:
                 return None
-            L, i, j = cur
-            for di, dj, c in dirs:
+            for k, (di, dj) in enumerate(DIRS):
+                turn = 0 if d == NODIR else min((k - d) % 8, (d - k) % 8)
+                if turn == 4:  # no reversing
+                    continue
                 ni, nj = i + di, j + dj
                 if not (0 <= ni < NX and 0 <= nj < NY):
                     continue
-                nxt = (L, ni, nj)
-                if blk[L, ni, nj] and nxt not in goals and self.occ[L, ni, nj] != nid:
+                if blk[L, ni, nj] and (L, ni, nj) not in goals and self.occ[L, ni, nj] != nid:
                     continue
                 if di and dj:  # diagonal: both orthogonal neighbours must be passable too
                     if (blk[L, ni, j] and self.occ[L, ni, j] != nid) or (blk[L, i, nj] and self.occ[L, i, nj] != nid):
@@ -156,14 +169,15 @@ class Router:
                     pref = 1.25
                 if L == 0 and di and not dj:
                     pref = 1.25
-                ng = gcost + c * pref
+                ng = gcost + (1.414 if di and dj else 1.0) * pref + TURN_COST[turn]
+                nxt = (L, ni, nj, k)
                 if ng < best.get(nxt, 1e18):
                     best[nxt] = ng; prev[nxt] = cur
                     heapq.heappush(openh, (ng + h(ni, nj), ng, nxt))
             # via
             if not vblk[i, j] or (self.occ[0, i, j] == nid and self.occ[1, i, j] == nid):
-                nxt = (1 - L, i, j)
-                if not blk[1 - L, i, j] or self.occ[1 - L, i, j] == nid or nxt in goals:
+                if not blk[1 - L, i, j] or self.occ[1 - L, i, j] == nid or (1 - L, i, j) in goals:
+                    nxt = (1 - L, i, j, NODIR)
                     ng = gcost + via_cost
                     if ng < best.get(nxt, 1e18):
                         best[nxt] = ng; prev[nxt] = cur
