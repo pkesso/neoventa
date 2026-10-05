@@ -11,3 +11,5 @@ gerbers/
 .venv/
 *.pdf
 simulations/*.png
+# KiCad 10 local history (File > Local History), a separate git repo
+.history/

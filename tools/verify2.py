@@ -1,7 +1,7 @@
 """Independent check of the generated .kicad_sch: parse it, rebuild connectivity from
 geometry + labels, compare against circuit.py, emit a SPICE netlist from the schematic's
 own Sim.* fields, and render a preview PNG."""
-import re, sys, subprocess, numpy as np
+import os, re, shutil, sys, subprocess, numpy as np
 from circuit2 import COMPONENTS
 
 path = sys.argv[1]
@@ -131,7 +131,8 @@ texts = [t[1] for t in F(T, "text") if t[1].startswith(".")]
 deck = "\n".join([lines[0]] + [f".include {l}" for l in sorted(libsincl)] + lines[1:] + texts +
                  [".control", "set wr_singlescale", "set wr_vecnames", "run", "wrdata sch_res.txt v(in) v(out)", ".endc", ".end"]) + "\n"
 open("from_schematic.cir", "w").write(deck)
-p = subprocess.run(["/tmp/claude-0/ngi/bin/ngspice", "-b", "from_schematic.cir"], capture_output=True, text=True)
+ngspice = os.environ.get("NGSPICE") or shutil.which("ngspice") or "ngspice"
+p = subprocess.run([ngspice, "-b", "from_schematic.cir"], capture_output=True, text=True)
 d = np.genfromtxt("sch_res.txt", names=True)
 print("schematic sim: out min/max", round(d["vout"].min(), 3), round(d["vout"].max(), 3))
 

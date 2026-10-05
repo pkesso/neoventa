@@ -1,0 +1,11 @@
+# Store and check out text files with LF on every machine, regardless of core.autocrlf
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.pdf binary
+*.step binary
+*.stp binary
+*.wrl binary
+*.zip binary
+*.pkl binary

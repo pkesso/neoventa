@@ -1,11 +1,13 @@
-"""Write venta_overdrive.kicad_pcb (KiCad 8 syntax; KiCad 10 opens and upgrades it) + project footprint lib."""
+"""Write venta_overdrive.kicad_pcb + project footprint lib, then resave both in KiCad 10 format via kicad-cli."""
 import json, math, pickle, uuid, os
 from circuit2 import COMPONENTS
 from place import COMP, BOARD, SHAFTS, LED_CENTRE
 from pcb_core import get_fp, flip_layer, to_global
 from route import TRACK, VIA_D, VIA_DRILL
+from kicad_cli import upgrade
 
-OUT = "/home/claude/work/v2/venta_overdrive"
+TOOLS = os.path.dirname(os.path.abspath(__file__))
+OUT = os.path.dirname(TOOLS)  # repository root
 NS = uuid.UUID("3b1a7c55-0f7e-4d0c-9a43-6f1b2a9d8e10")
 _n = [0]
 
@@ -23,9 +25,9 @@ def f(v):
     return f"{round(v, 4):g}"
 
 
-placed, tracks, vias, failed = pickle.load(open("/home/claude/work/routed.pkl", "rb"))
+placed, tracks, vias, failed = pickle.load(open(os.path.join(TOOLS, "routed.pkl"), "rb"))
 assert not failed
-syminfo = json.load(open("/home/claude/work/v2/symuuid.json"))
+syminfo = json.load(open(os.path.join(TOOLS, "symuuid.json")))
 nets = sorted({n for c in COMPONENTS for n in c[3].values()})
 nets.remove("GND"); nets = ["GND"] + nets
 NET = {n: i + 1 for i, n in enumerate(nets)}
@@ -175,21 +177,27 @@ def main():
         d += ch == "("; d -= ch == ")"
         assert d >= 0
     assert d == 0
-    open(f"{OUT}/venta_overdrive.kicad_pcb", "w").write(txt)
+    open(f"{OUT}/venta_overdrive.kicad_pcb", "w", newline="\n").write(txt)
     # project footprint library
     os.makedirs(f"{OUT}/Venta.pretty", exist_ok=True)
     for name in ("Venta:Pot_Alpha_16mm_RA_Single", "Venta:Pot_Alpha_16mm_RA_Dual", "Venta:WirePad"):
         fp = get_fp(name)
         o = [f'(footprint {q(name.split(":")[1])} (version 20240108) (generator "pcbnew") (generator_version "8.0") (layer "F.Cu")',
              f'(property "Reference" "REF**" (at {f(fp.ref_at[0])} {f(fp.ref_at[1])} 0) (layer "F.SilkS") (uuid {U()}) (effects (font (size 1 1) (thickness 0.15))))',
-             f'(property "Value" {q(name.split(":")[1])} (at {f(fp.val_at[0])} {f(fp.val_at[1])} 0) (layer "F.Fab") (uuid {U()}) (effects (font (size 1 1) (thickness 0.15))))',
-             f'(attr through_hole)']
+             f'(property "Value" {q(name.split(":")[1])} (at {f(fp.val_at[0])} {f(fp.val_at[1])} 0) (layer "F.Fab") (uuid {U()}) (effects (font (size 1 1) (thickness 0.15))))']
+        # KiCad 10 adds these on upgrade with random UUIDs; write them with stable ones (outside the U() sequence)
+        for prop in ("Datasheet", "Description"):
+            o.append(f'(property {q(prop)} "" (at 0 0 0) (layer "F.Fab") (hide yes) (uuid "{uuid.uuid5(NS, name + "/" + prop)}") '
+                     f'(effects (font (size 1.27 1.27))))')
+        o.append('(attr through_hole)')
         o += gfx_items(fp, "F", 0)
         for p in fp.pads:
             o.append(f'(pad {q(p.num)} thru_hole {p.shape} (at {f(p.x)} {f(p.y)}) (size {f(p.w)} {f(p.h)}) (drill {f(p.drill)}) (layers "*.Cu" "*.Mask") (uuid {U()}))')
         o.append(")")
-        open(f"{OUT}/Venta.pretty/{name.split(':')[1]}.kicad_mod", "w").write("\n  ".join(o) + "\n")
-    open(f"{OUT}/fp-lib-table", "w").write('(fp_lib_table\n  (version 7)\n  (lib (name "Venta")(type "KiCad")(uri "${KIPRJMOD}/Venta.pretty")(options "")(descr "Venta Overdrive footprints"))\n)\n')
+        open(f"{OUT}/Venta.pretty/{name.split(':')[1]}.kicad_mod", "w", newline="\n").write("\n  ".join(o) + "\n")
+    upgrade("pcb", f"{OUT}/venta_overdrive.kicad_pcb")
+    upgrade("fp", f"{OUT}/Venta.pretty")
+    open(f"{OUT}/fp-lib-table", "w", newline="\n").write('(fp_lib_table\n  (version 7)\n  (lib (name "Venta")(type "KiCad")(uri "${KIPRJMOD}/Venta.pretty")(options "")(descr "Venta Overdrive footprints"))\n)\n')
     print("nets", len(NET), "footprints", len(placed), "segments", sum(len(p) - 1 for _, _, p in tracks), "vias", len(vias))
 
 

@@ -1,10 +1,12 @@
-"""Generate a KiCad 8/9 project (schematic + symbol library) from circuit.py."""
-import uuid, os, shutil
+"""Generate the schematic + symbol library from circuit2.py, then resave them in KiCad 10 format via kicad-cli."""
+import uuid, os
 from circuit2 import COMPONENTS, POT_POS
+from kicad_cli import upgrade
 import json
 
 PROJ = "venta_overdrive"
-OUT = "/home/claude/work/v2/" + PROJ
+TOOLS = os.path.dirname(os.path.abspath(__file__))
+OUT = os.path.dirname(TOOLS)  # repository root
 LIB = "Venta"
 NS = uuid.UUID("8d2f6a1e-5b3c-4c8e-9a7d-2f1e0b6c4d3a")
 _cnt = [0]
@@ -274,21 +276,31 @@ def main():
             o.append(f"(property {q(k)} {q(v)} (at {at}) {eff})")
         for num, *_ in SYMBOLS[sname]["units"][unit]["pins"]:
             o.append(f"(pin {q(num)} (uuid {q(U())}))")
+        # KiCad 10 lists the pins of all units in every unit instance; give the other units' pins
+        # stable UUIDs (outside the U() sequence, so existing UUIDs don't shift)
+        for un, u in SYMBOLS[sname]["units"].items():
+            if un != unit:
+                for num, *_ in u["pins"]:
+                    o.append(f"(pin {q(num)} (uuid {q(uuid.uuid5(NS, f'{ref}/{unit}/pin {num}'))}))")
         o.append(f'(instances (project {q(PROJ)} (path {q("/" + ROOT)} (reference {q(ref)}) (unit {unit}))))')
         o.append(")")
     o.append('(sheet_instances (path "/" (page "1")))')
     o.append(")")
-    open(f"{OUT}/{PROJ}.kicad_sch", "w").write("\n".join(o) + "\n")
+    open(f"{OUT}/{PROJ}.kicad_sch", "w", newline="\n").write("\n".join(o) + "\n")
 
     # ---------------- symbol library + lib tables ----------------
     lib = ['(kicad_symbol_lib (version 20231120) (generator "kicad_symbol_editor") (generator_version "8.0")']
     for sname in SYMBOLS:
         lib.append(lib_symbol(sname, sname))
     lib.append(")")
-    open(f"{OUT}/{LIB}.kicad_sym", "w").write("\n".join(lib) + "\n")
-    open(f"{OUT}/sym-lib-table", "w").write(
+    open(f"{OUT}/{LIB}.kicad_sym", "w", newline="\n").write("\n".join(lib) + "\n")
+    open(f"{OUT}/sym-lib-table", "w", newline="\n").write(
         '(sym_lib_table\n  (version 7)\n  (lib (name "Venta")(type "KiCad")(uri "${KIPRJMOD}/Venta.kicad_sym")(options "")(descr "Venta Overdrive symbols"))\n)\n')
-    open(f"{OUT}/{PROJ}.kicad_pro", "w").write(PRO)
+    # the project file holds settings edited in KiCad; only create a stub when it is missing
+    if not os.path.exists(f"{OUT}/{PROJ}.kicad_pro"):
+        open(f"{OUT}/{PROJ}.kicad_pro", "w", newline="\n").write(PRO)
+    upgrade("sch", f"{OUT}/{PROJ}.kicad_sch")
+    upgrade("sym", f"{OUT}/{LIB}.kicad_sym")
     return pin_net_check
 
 
@@ -304,5 +316,5 @@ PRO = """{
 if __name__ == "__main__":
     PRO = PRO % ROOT
     chk = main()
-    json.dump({"root": ROOT, "sym": SYMUUID}, open("/home/claude/work/v2/symuuid.json", "w"), indent=1)
+    json.dump({"root": ROOT, "sym": SYMUUID}, open(os.path.join(TOOLS, "symuuid.json"), "w", newline="\n"), indent=1)
     print("pins placed:", len(chk))

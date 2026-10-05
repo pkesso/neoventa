@@ -1,7 +1,7 @@
 """Footprint loading and geometry helpers for the Venta board."""
 import re, math, os
 
-FPDIR = "/home/claude/work/fplib"
+FPDIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fplib")
 
 
 def sexpr(s):
