@@ -1,0 +1,8 @@
+#!/bin/sh
+# Runs tools/check.py on the staged files. Enable once per clone:
+#   git config core.hooksPath .githooks
+root=$(git rev-parse --show-toplevel)
+py="$root/.venv/Scripts/python.exe"
+[ -x "$py" ] || py="$root/.venv/bin/python"
+[ -x "$py" ] || py=python
+exec "$py" "$root/tools/check.py" --hook

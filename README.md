@@ -92,9 +92,37 @@ Scripts are run from the `tools/` directory. The pipeline:
 | Check | `verify2.py <file.kicad_sch>` | Rebuilds connectivity from the schematic, compares it with `circuit2.py`, runs ngspice |
 | Drilling template | `drill_template.py` | Hole positions from `place.py` → `../drill_template_1590N1.pdf` (A4, 1:1) |
 
-Helper modules: `place.py` (board outline, placement), `route.py` (2-layer grid router, 0.25 mm grid), `pcb_core.py` (footprint loading and geometry, reads `tools/fplib/`), `kicad_cli.py` (runs `kicad-cli upgrade`), `k10fmt.py` (KiCad 10 library formatter, no longer used by the pipeline).
+Helper modules: `check.py` (repository checks, see below), `place.py` (board outline, placement), `route.py` (2-layer grid router, 0.25 mm grid), `pcb_core.py` (footprint loading and geometry, reads `tools/fplib/`), `kicad_cli.py` (runs `kicad-cli upgrade`), `k10fmt.py` (KiCad 10 library formatter, no longer used by the pipeline).
 
 Notes:
 - `routed.pkl` is in `.gitignore`. Without it, `write_pcb.py` can only run after routing again.
 - `gen_sch2.py` and `write_pcb.py` overwrite the KiCad files. Changes made by hand in KiCad will be lost if you regenerate them.
 - The generators are deterministic: running them again on unchanged inputs reproduces the committed files byte for byte.
+
+## Checks
+
+`tools/check.py` validates the repository. It needs only the Python standard library and `kicad-cli`.
+
+| Check | What it verifies |
+|---|---|
+| `format` | KiCad files are in KiCad 10 format |
+| `paths` | No absolute paths in KiCad files and library tables |
+| `english` | No Cyrillic text in the repository's text files |
+| `python` | Python scripts compile |
+| `erc` | KiCad ERC reports no errors |
+| `drc` | KiCad DRC reports no errors (zones are refilled for the check, the board file is not changed; includes schematic parity) |
+| `assembly` | `jlcpcb/` BOM and CPL match the board: parts, values, LCSC numbers, position, side, rotation |
+
+```bash
+.venv/Scripts/python tools/check.py
+```
+
+Run selected checks by name (`tools/check.py drc assembly`). ERC/DRC warnings are listed but only fail with `--strict`. To accept a DRC/ERC item, exclude it in KiCad (right click → Exclude); excluded items are not reported.
+
+The same script runs as a git pre-commit hook. It runs only the checks relevant to the staged files and blocks the commit if any of them fails. Enable it once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The hook checks the working tree, not the staged versions of the files.
