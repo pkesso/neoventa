@@ -46,6 +46,34 @@ requirements.txt              Python dependencies for tools/
 - **Status LED:** external, with its own resistor. Anode to J6 (LED+), cathode to a 3PDT lug; the common of that 3PDT pole goes to J7 (GND), so the LED lights when the effect is on.
 - **Wire pads:** J1 IN, J2 OUT, J3 +9V, J4/J5 GND, J6 LED+ (VCC, to the LED anode), J7 GND (to the 3PDT LED pole).
 
+### Power: DC jack or 9 V battery
+
+The board takes power from J3 (+9V) and J4 (GND) and does not care where it comes from. Switching between a 9 V adapter
+and a 9 V (PP3) battery is done off the board, with two switching jacks:
+
+- a 2.1 mm DC jack with a switch lug that is connected to the jack's + contact only while no plug is inserted;
+- a stereo (TRS) input jack: its ring lug works as the battery switch.
+
+```
+battery +        -> DC jack switch lug
+DC jack +        -> J3 (+9V)        (Boss-style adapter: centre negative, sleeve positive)
+DC jack -        -> J4 (GND)
+battery -        -> input jack ring (R)
+input jack sleeve (S) -> J5 (GND)
+input jack tip (T)    -> 3PDT -> J1 (IN)
+```
+
+- Without an adapter, the battery + reaches J3 through the DC jack's switch lug. Plugging the adapter in opens the switch
+  lug, so the battery is disconnected and the pedal runs from the adapter.
+- A mono guitar cable in the input jack shorts the ring to the sleeve and connects the battery -. Unplugging the cable
+  turns the battery off, so the pedal must not be left with a cable plugged in.
+- D3 (SS14) protects against reverse polarity for both sources and drops about 0.3–0.4 V.
+- Current draw is about 8–12 mA for the three 4558s plus the status LED (2–10 mA depending on its resistor). An
+  alkaline PP3 (~500 mAh) lasts roughly 25–50 hours; a dimmer LED (1–2 mA) noticeably extends that.
+- The circuit keeps working down to about 6–7 V, but the op-amps start to clip earlier as the battery runs down.
+- Space: a PP3 is 48.5 × 26.5 × 17.5 mm and the free depth under the board in the 1590N1 is only about 20 mm, so check
+  the battery's place against the footswitch and jacks before drilling.
+
 ### Changes from the original circuit
 - R8 (filter summer input) is 75 kΩ as in the factory schematic; the stripboard layout has 15 kΩ, which makes the pedal about 13 dB louder with a weaker resonance peak.
 - Resonance (RV2) is wired so that turning it clockwise increases the resonance, as on the original; the stripboard layout has it reversed.
